@@ -38,6 +38,38 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// walnuts_find_boundary_prec
+Rcpp::LogicalVector walnuts_find_boundary_prec(Rcpp::List map, Rcpp::IntegerVector plan, int dist_1, int dist_2, int n_rows);
+RcppExport SEXP _redist_walnuts_find_boundary_prec(SEXP mapSEXP, SEXP planSEXP, SEXP dist_1SEXP, SEXP dist_2SEXP, SEXP n_rowsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type map(mapSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type plan(planSEXP);
+    Rcpp::traits::input_parameter< int >::type dist_1(dist_1SEXP);
+    Rcpp::traits::input_parameter< int >::type dist_2(dist_2SEXP);
+    Rcpp::traits::input_parameter< int >::type n_rows(n_rowsSEXP);
+    rcpp_result_gen = Rcpp::wrap(walnuts_find_boundary_prec(map, plan, dist_1, dist_2, n_rows));
+    return rcpp_result_gen;
+END_RCPP
+}
+// walnuts_find_boundary_blk
+Rcpp::LogicalVector walnuts_find_boundary_blk(Rcpp::List map, Rcpp::IntegerVector plan, int dist_1, int dist_2, int n_rows, Rcpp::CharacterVector geoids, std::string gpp);
+RcppExport SEXP _redist_walnuts_find_boundary_blk(SEXP mapSEXP, SEXP planSEXP, SEXP dist_1SEXP, SEXP dist_2SEXP, SEXP n_rowsSEXP, SEXP geoidsSEXP, SEXP gppSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type map(mapSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type plan(planSEXP);
+    Rcpp::traits::input_parameter< int >::type dist_1(dist_1SEXP);
+    Rcpp::traits::input_parameter< int >::type dist_2(dist_2SEXP);
+    Rcpp::traits::input_parameter< int >::type n_rows(n_rowsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type geoids(geoidsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type gpp(gppSEXP);
+    rcpp_result_gen = Rcpp::wrap(walnuts_find_boundary_blk(map, plan, dist_1, dist_2, n_rows, geoids, gpp));
+    return rcpp_result_gen;
+END_RCPP
+}
 // coarsen_adjacency
 List coarsen_adjacency(List adj, IntegerVector groups);
 RcppExport SEXP _redist_coarsen_adjacency(SEXP adjSEXP, SEXP groupsSEXP) {
@@ -620,6 +652,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_redist_reduce_adj", (DL_FUNC) &_redist_reduce_adj, 3},
     {"_redist_collapse_adj", (DL_FUNC) &_redist_collapse_adj, 2},
+    {"_redist_walnuts_find_boundary_prec", (DL_FUNC) &_redist_walnuts_find_boundary_prec, 5},
+    {"_redist_walnuts_find_boundary_blk", (DL_FUNC) &_redist_walnuts_find_boundary_blk, 7},
     {"_redist_coarsen_adjacency", (DL_FUNC) &_redist_coarsen_adjacency, 2},
     {"_redist_get_plan_graph", (DL_FUNC) &_redist_get_plan_graph, 4},
     {"_redist_color_graph", (DL_FUNC) &_redist_color_graph, 2},

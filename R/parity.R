@@ -133,3 +133,210 @@ min_move_parity <- function(map, plan, counties = NULL, penalty = 0.2) {
         pop_old = pops[, 1],
         pop_new = pops_new[, 1])
 }
+
+#' Calculates Sparse Population Moves to Reduce Population Deviation to 1
+#'
+#' This function computes a minimal set of population moves (e.g., 5 people from
+#' district 1 to district 3) to balance the population between districts such
+#' that the deviation is at most 1 between districts.
+#'
+#' @param map a [redist_map]
+#' @param plan an integer vector containing the plan to be balanced.
+#' @param county_splits a boolean value that indicates whether to recommend a
+#' set of moves in which no additional counties are split (in testing)
+#' @param no_transfer a dataframe consisting of a from, to, and pop column that
+#' lists the districts between which no transfer should occur
+#'
+#' @returns a dataframe consisting of a from, to, and pop column that describes
+#' how much population should be moved from/to each district
+#'
+#' @examples
+#' data(iowa)
+#' optimal_transfer(redist_map(iowa, existing_plan = cd_2010), iowa$cd_2010)
+#'
+#' @concept analyze
+#' @md
+#' @export
+optimal_transfer <- function(map, plan, county_splits = FALSE, no_transfer = data.frame()){
+
+    map <- validate_redist_map(map)
+
+    if (!is.numeric(plan) && all(plan > 0) && length(plan) == nrow(map))
+        cli_abort("{.arg plan} must be a positive integer vector with one entry per precinct.")
+
+    n_dists = length(unique(plan))
+    move_list = gen_move_list(map, plan, n_dists)
+    adj_matrix = gen_adj_matrix(map, plan, county_splits, no_transfer)
+
+    # Check that some population can be moved in and out of each district
+    adj_mat_check <- rowSums(adj_matrix) + colSums(adj_matrix)
+    no_pop_move <- c()
+    for (i in 1:n_dists){
+        if (adj_mat_check[i] == 0){
+            no_pop_move <- c(no_pop_move, i)
+        }
+    }
+
+    # Remove districts for which no population can be moved
+    if (length(no_pop_move) != 0){
+        for (i in no_pop_move){
+            # Decrease districts by 1
+            n_dists <- n_dists - 1
+            # Remove the district from the adjacency matrix
+            adj_matrix <- adj_matrix[-c(i), -c(i)]
+            # Generate a new move list
+            move_list = move_list[-c(i)]
+        }
+    }
+
+    mat = solve_transfer(move_list, adj_matrix)
+
+    # Replace districts for which no population can be moved
+    for (i in no_pop_move){
+        # Increase districts by 1
+        n_dists <- n_dists + 1
+        # Add district back into the matrix with all 0s
+        if (n_dists != i){
+            mat <- rbind(mat[1:i, ], rep(0, n_dists-1), mat[-(1:i), ])
+            mat <- cbind(mat[,1:i], rep(0, n_dists), mat[,-(1:i)])
+        }
+        else {
+            mat <- rbind(mat[1:(i-1), ], rep(0, n_dists-1))
+            mat <- cbind(mat[,1:(i-1)], rep(0, n_dists))
+        }
+
+    }
+
+    # Turn final matrix into a dataframe
+    out = data.frame()
+    for (i in 1:n_dists){
+        for (j in 1:n_dists){
+            if (mat[i,j] != 0){
+                out <- rbind(out, c(i, j, mat[i,j]))
+            }
+        }
+    }
+    if(nrow(out) > 0){
+        colnames(out) <- c("from", "to", "pop")
+    }
+    return(out)
+}
+
+# Generate a list of all of the district population deviations
+gen_move_list <- function(redist_map, plan, n_dists){
+    map <- tibble::as_tibble(redist_map)
+    map$plan <- plan
+    pop_ideal <- floor(sum(redist_map$pop)/n_dists)
+    move_list <- map %>%
+        group_by(plan) %>%
+        summarize(pop_dev = pop_ideal - sum(pop)) %>%
+        arrange(plan) %>%
+        pull(pop_dev)
+
+    # Adjust the population of the districts to equal to the total population
+    # of the state
+    counter = 1;
+    while(sum(move_list) < 0){
+        move_list[counter] = move_list[counter] + 1
+        counter = counter + 1
+    }
+
+    return(move_list)
+}
+
+# Generate an adjacency matrix for the districts
+gen_adj_matrix <- function(redist_map, plan, county_splits = FALSE, no_transfer = data.frame()){
+    # Number of districts
+    n_dists = length(unique(plan))
+
+    # Join plan to redist_map
+    redist_map$plan <- plan
+
+    # Create adjacency list representation for districts
+    adj_list <- get_plan_graph(redist_map$adj, nrow(redist_map), plan, n_dists)
+
+    if (county_splits){
+        # Create list of counties in each district
+        counties <- tibble::as_tibble(redist_map) %>%
+            group_by(plan) %>%
+            summarize(county = list(unique(county)))
+
+        # Convert adjacency list into adjacency matrix
+        adj_matrix = matrix(rep(0, n_dists^2), nrow = n_dists)
+        for (i in 1:n_dists){
+            for (num in adj_list[[i]]){
+                # Check for an overlapping county
+                if (any(counties$county[[i]] %in% counties$county[[num + 1]])){
+                    adj_matrix[i, num + 1] = 1
+                }
+            }
+        }
+    }
+    else {
+        # Convert adjacency list into adjacency matrix
+        adj_matrix = matrix(rep(0, n_dists^2), nrow = n_dists)
+        for (i in 1:n_dists){
+            for (num in adj_list[[i]]){
+                adj_matrix[i, num + 1] = 1
+            }
+        }
+    }
+
+    if (nrow(no_transfer) != 0){
+        for (i in 1:nrow(no_transfer)){
+            adj_matrix[no_transfer$from[i], no_transfer$to[i]] = 0
+            adj_matrix[no_transfer$to[i], no_transfer$from[i]] = 0
+        }
+    }
+
+    return(adj_matrix)
+}
+
+# Helper function to convert vectors to matrices
+vec_2_mat = function(x){
+    n = trunc(0.5 * (1 + sqrt(1 + 4*length(x))))
+    X = matrix(0, n, n)
+    X[lower.tri(X) | upper.tri(X)] = x
+    return(X)
+}
+
+# Construct a constraint matrix for the optimization
+get_const_matrix = function(n, M = NULL){
+    stopifnot(n>=2);
+
+    mask = rep(1L, n*(n-1))
+    if(!is.null(M)){
+        mask = as.numeric(M[lower.tri(M) | upper.tri(M)] != 0);
+    }
+
+    block = rbind(rep(1L, n-1),
+                  -diag(n-1));
+
+    b_list = vector(mode = "list", length = n);
+    b_list[[1]] = block;
+
+    for(i in 2:n){
+        block[(i-1):i, ] = block[i:(i-1), ];
+        b_list[[i]] = block;
+    }
+
+    return(sweep(do.call(cbind, b_list), MARGIN=2, mask, "*"));
+}
+
+# Run linear program to get optimal transfer
+solve_transfer <- function(move_list, adj_matrix){
+
+    n = length(move_list)
+    k = n*(n-1)
+    C = get_const_matrix(n, adj_matrix)
+
+    # solve lp
+    fit_lp = lpSolve::lp(
+        objective.in = rep(1, k),
+        const.mat = C,
+        const.dir = rep("==", n),
+        const.rhs = move_list
+    )
+
+    return(vec_2_mat(fit_lp$solution))
+}

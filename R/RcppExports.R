@@ -9,6 +9,14 @@ collapse_adj <- function(graph, idxs) {
     .Call(`_redist_collapse_adj`, graph, idxs)
 }
 
+walnuts_find_boundary_prec <- function(map, plan, dist_1, dist_2, n_rows) {
+    .Call(`_redist_walnuts_find_boundary_prec`, map, plan, dist_1, dist_2, n_rows)
+}
+
+walnuts_find_boundary_blk <- function(map, plan, dist_1, dist_2, n_rows, geoids, gpp) {
+    .Call(`_redist_walnuts_find_boundary_blk`, map, plan, dist_1, dist_2, n_rows, geoids, gpp)
+}
+
 coarsen_adjacency <- function(adj, groups) {
     .Call(`_redist_coarsen_adjacency`, adj, groups)
 }
