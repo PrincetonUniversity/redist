@@ -506,17 +506,22 @@ rbind.redist_plans <- function(..., deparse.level = 1) {
         }
     }
 
-    ret <- lapply(seq_along(objs), function(i) {
-        out <- objs[[i]] |>
-            dplyr::as_tibble()
-
-        if (is.null(out$chain)) {
-            out$chain <- i
+    # split by chain and then recombine
+    split_if <- function(pl) {
+        if ("chain" %in% names(pl)) {
+            pl$chain[is.na(pl$chain)] = -1L
+            split(pl, pl$chain)
+        } else {
+            list(pl)
         }
-        out
-    }) |>
-        purrr::list_rbind()
-    ret$chain <- factor_combine(ret$chain)
+    }
+    ret <- objs |>
+        lapply(split_if) |>
+        unlist(recursive = FALSE) |>
+        unname() |>
+        lapply(dplyr::as_tibble) |>
+        dplyr::bind_rows(.id = "chain")
+
     ret <- reconstruct.redist_plans(ret, objs[[1]])
     attr(ret, "compactness") <- comp
     attr(ret, "constraints") <- constr
