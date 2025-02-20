@@ -216,7 +216,10 @@ redist_mergesplit_parallel <- function(map, nsims, chains = 1,
         t2_run <- Sys.time()
 
         algout$l_diag <- list(
-            runtime = as.numeric(t2_run - t1_run, units = "secs")
+            runtime = as.numeric(t2_run - t1_run, units = "secs"),
+            prethinned_sims = nsims,
+            thin = thin,
+            warmup = warmup
         )
 
         algout$mh <- mean(as.logical(algout$mhdecisions))

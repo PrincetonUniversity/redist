@@ -30,12 +30,13 @@ Rcpp::List ms_plans(int N, List l, const uvec init, const uvec &counties, const 
     int V = g.size();
     int n_cty = max(counties);
 
-    int n_out = N/thin + 2;
+    int rounded_up_N_over_thin = std::ceil(static_cast<double>(std::max(1, N-1))/thin);
+    int n_out = rounded_up_N_over_thin + 2;
     umat districts(V, n_out, fill::zeros);
     districts.col(0) = init;
     districts.col(1) = init;
 
-    Rcpp::IntegerVector mh_decisions(N/thin + 1);
+    Rcpp::IntegerVector mh_decisions(rounded_up_N_over_thin + 1);
     double mha;
 
     double tol = std::max(target - lower, upper - target) / target;
